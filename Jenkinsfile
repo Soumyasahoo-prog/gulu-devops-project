@@ -12,7 +12,7 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t Soumyasahoo2002/gulu-website:v1 .'
+                sh 'docker build -t YOUR_DOCKERHUB_USERNAME/gulu-website:v1 .'
             }
         }
 
@@ -30,8 +30,8 @@ pipeline {
 
         stage('Docker Push') {
             steps {
-                sh 'docker push Soumyasahoo2002/gulu-website:v1'
+                sh 'docker push soumyasahoo2002/gulu-website:v1'
             }
         }
     }
-
+}
