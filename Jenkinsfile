@@ -2,7 +2,6 @@ pipeline {
     agent any
 
     stages {
-
         stage('Checkout') {
             steps {
                 echo 'Checking out Gulu DevOps project'
@@ -12,7 +11,11 @@ pipeline {
 
         stage('Docker Build') {
             steps {
-                sh 'docker build -t soumyasahoo2002/gulu-website:v1 .'
+                sh '''
+                    docker build \
+                        -t soumyasahoo2002/gulu-website:v1 \
+                        -t soumyasahoo2002/gulu-website:${BUILD_NUMBER} .
+                '''
             }
         }
 
@@ -23,18 +26,24 @@ pipeline {
                     usernameVariable: 'DOCKER_USERNAME',
                     passwordVariable: 'DOCKER_PASSWORD'
                 )]) {
-                    sh 'echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin'
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USERNAME" --password-stdin
+                    '''
                 }
             }
         }
 
         stage('Docker Push') {
             steps {
-                sh 'docker push soumyasahoo2002/gulu-website:v1'
+                sh '''
+                    docker push soumyasahoo2002/gulu-website:v1
+                    docker push soumyasahoo2002/gulu-website:${BUILD_NUMBER}
+                '''
             }
         }
 
-        stage('Deploy to Application EC2') {
+        stage('Deploy to Kubernetes') {
             steps {
                 withCredentials([sshUserPrivateKey(
                     credentialsId: 'app-ec2-ssh',
@@ -42,11 +51,12 @@ pipeline {
                     usernameVariable: 'SSH_USER'
                 )]) {
                     sh '''
-                        ssh -o StrictHostKeyChecking=no -i "$SSH_KEY" "$SSH_USER"@172.31.29.182 "
-                            docker pull soumyasahoo2002/gulu-website:v1 &&
-                            (docker rm -f gulu-web || true) &&
-                            docker run -d --name gulu-web -p 8080:80 soumyasahoo2002/gulu-website:v1
-                        "
+                        ssh -i "$SSH_KEY" \
+                            -o StrictHostKeyChecking=no \
+                            "$SSH_USER"@172.31.29.182 \
+                            "sudo k3s kubectl set image deployment/gulu-website gulu-website=soumyasahoo2002/gulu-website:${BUILD_NUMBER} &&
+                             sudo k3s kubectl rollout status deployment/gulu-website --timeout=180s &&
+                             sudo k3s kubectl get pods"
                     '''
                 }
             }
